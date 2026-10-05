@@ -1,0 +1,42 @@
+# Java / Maven
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+dist/
+.pnpm-store/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local data / research artifacts
+data/raw/
+data/processed/
+data/samples/
+data/screenshots/
+
+# Backend build output
+backend/target/
+
+# Frontend build output
+frontend/.next/
+frontend/node_modules/
