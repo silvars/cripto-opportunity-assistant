@@ -21,14 +21,12 @@ class CandlePersisterTest {
 
     @Mock
     private CandleRepository candleRepository;
-    @Mock
-    private MarketStatusRegistry statusRegistry;
 
     private CandlePersister persister;
 
     @BeforeEach
     void setUp() {
-        persister = new CandlePersister(candleRepository, statusRegistry);
+        persister = new CandlePersister(candleRepository);
     }
 
     private static Candle candle(Instant openTime) {
@@ -47,7 +45,6 @@ class CandlePersisterTest {
 
         assertThat(persisted).isFalse();
         verify(candleRepository, never()).save(any());
-        verify(statusRegistry, never()).candlePersisted(any(), any(), any());
     }
 
     @Test
@@ -64,7 +61,7 @@ class CandlePersisterTest {
     }
 
     @Test
-    void persistsNewValidCandleAndUpdatesStatus() {
+    void persistsNewValidCandle() {
         Instant openTime = Instant.parse("2026-01-01T00:00:00Z");
         Candle candle = candle(openTime);
         when(candleRepository.findBySymbolAndIntervalAndOpenTime("BTCUSDT", "1m", openTime))
@@ -74,6 +71,5 @@ class CandlePersisterTest {
 
         assertThat(persisted).isTrue();
         verify(candleRepository).save(any(CandleEntity.class));
-        verify(statusRegistry).candlePersisted("BTCUSDT", "1m", openTime);
     }
 }
