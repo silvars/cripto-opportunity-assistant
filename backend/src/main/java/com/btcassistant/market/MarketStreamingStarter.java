@@ -2,6 +2,7 @@ package com.btcassistant.market;
 
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.ExecutorService;
@@ -12,6 +13,7 @@ import java.util.concurrent.Executors;
  * (SDD Fase 0 §2). O backfill roda em thread virtual para não bloquear o boot do contexto Spring.
  */
 @Component
+@Profile("!test")
 public class MarketStreamingStarter implements ApplicationRunner {
 
     private final MarketProperties marketProperties;
