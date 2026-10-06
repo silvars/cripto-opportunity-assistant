@@ -14,15 +14,18 @@ public class GapRecoveryService {
     private static final Logger log = LoggerFactory.getLogger(GapRecoveryService.class);
 
     private final MarketDataProvider marketDataProvider;
-    private final CandleRepository candleRepository;
+    private final CandlePersister candlePersister;
     private final MarketProperties marketProperties;
+    private final MarketStatusRegistry statusRegistry;
 
     public GapRecoveryService(MarketDataProvider marketDataProvider,
-                              CandleRepository candleRepository,
-                              MarketProperties marketProperties) {
+                              CandlePersister candlePersister,
+                              MarketProperties marketProperties,
+                              MarketStatusRegistry statusRegistry) {
         this.marketDataProvider = marketDataProvider;
-        this.candleRepository = candleRepository;
+        this.candlePersister = candlePersister;
         this.marketProperties = marketProperties;
+        this.statusRegistry = statusRegistry;
     }
 
     public void recover(String symbol, String interval, Instant from, Instant to) {
@@ -31,23 +34,15 @@ public class GapRecoveryService {
             return;
         }
 
-        log.info("backfill_started symbol={} interval={} from={} to={}", symbol, interval, from, to);
+        log.info("gap_recovery_started symbol={} interval={} from={} to={}", symbol, interval, from, to);
         List<Candle> missing = marketDataProvider.fetchHistorical(instrument, from, to);
         int persisted = 0;
         for (Candle candle : missing) {
-            CandleValidator.ValidationResult result = CandleValidator.validate(candle);
-            if (!result.valid()) {
-                log.warn("candle_rejected symbol={} openTime={} reason={}", candle.symbol(), candle.openTime(), result.reason());
-                continue;
-            }
-            boolean alreadyExists = candleRepository
-                    .findBySymbolAndIntervalAndOpenTime(candle.symbol(), candle.interval(), candle.openTime())
-                    .isPresent();
-            if (!alreadyExists) {
-                candleRepository.save(CandleEntity.from(candle));
+            if (candlePersister.persist(candle)) {
                 persisted++;
             }
         }
-        log.info("backfill_completed symbol={} interval={} fetched={} persisted={}", symbol, interval, missing.size(), persisted);
+        statusRegistry.refreshCounts(symbol, interval);
+        log.info("gap_recovery_completed symbol={} interval={} fetched={} persisted={}", symbol, interval, missing.size(), persisted);
     }
 }

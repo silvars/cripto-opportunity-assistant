@@ -30,6 +30,9 @@ services:
       DB_USER: ${DB_USER:-btc_assistant}
       DB_PASSWORD: ${DB_PASSWORD:-btc_assistant}
       SERVER_PORT: 8080
+      BACKFILL_ENABLED: ${BACKFILL_ENABLED:-true}
+      BACKFILL_PERIOD: ${BACKFILL_PERIOD:-12-months}
+      BACKFILL_MAX_RETRIES: ${BACKFILL_MAX_RETRIES:-3}
     ports:
       - "8080:8080"
 

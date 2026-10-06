@@ -40,6 +40,7 @@ public class MarketProperties {
         private String exchange;
         private String interval;
         private boolean enabled;
+        private HistoricalBackfillConfig historicalBackfill = new HistoricalBackfillConfig();
 
         public String getSymbol() {
             return symbol;
@@ -89,8 +90,38 @@ public class MarketProperties {
             this.enabled = enabled;
         }
 
+        public HistoricalBackfillConfig getHistoricalBackfill() {
+            return historicalBackfill;
+        }
+
+        public void setHistoricalBackfill(HistoricalBackfillConfig historicalBackfill) {
+            this.historicalBackfill = historicalBackfill;
+        }
+
         public Instrument toInstrument() {
             return new Instrument(symbol, baseAsset, quoteAsset, exchange, interval, enabled);
+        }
+    }
+
+    public static class HistoricalBackfillConfig {
+
+        private boolean enabled = true;
+        private String period = "12-months";
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getPeriod() {
+            return period;
+        }
+
+        public void setPeriod(String period) {
+            this.period = period;
         }
     }
 }

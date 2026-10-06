@@ -5,6 +5,7 @@ import com.btcassistant.market.CandleListener;
 import com.btcassistant.market.Instrument;
 import com.btcassistant.market.IntervalSupport;
 import com.btcassistant.market.MarketDataProvider;
+import com.btcassistant.market.MarketStatusRegistry;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -45,6 +46,11 @@ public class BinanceMarketDataProvider implements MarketDataProvider {
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ScheduledExecutorService reconnectExecutor = Executors.newSingleThreadScheduledExecutor();
+    private final MarketStatusRegistry statusRegistry;
+
+    public BinanceMarketDataProvider(MarketStatusRegistry statusRegistry) {
+        this.statusRegistry = statusRegistry;
+    }
 
     @Override
     public void streamLive(Instrument instrument, CandleListener listener) {
@@ -59,6 +65,7 @@ public class BinanceMarketDataProvider implements MarketDataProvider {
                 .buildAsync(uri, new BinanceWebSocketListener(instrument, listener, backoff))
                 .exceptionally(throwable -> {
                     log.warn("websocket_disconnected symbol={} reason={}", instrument.symbol(), throwable.getMessage());
+                    statusRegistry.websocketConnected(instrument.symbol(), false);
                     scheduleReconnect(instrument, listener, backoff);
                     return null;
                 });
@@ -171,6 +178,7 @@ public class BinanceMarketDataProvider implements MarketDataProvider {
         @Override
         public void onOpen(WebSocket webSocket) {
             log.info("websocket_connected symbol={}", instrument.symbol());
+            statusRegistry.websocketConnected(instrument.symbol(), true);
             WebSocket.Listener.super.onOpen(webSocket);
         }
 
@@ -193,12 +201,14 @@ public class BinanceMarketDataProvider implements MarketDataProvider {
         @Override
         public void onError(WebSocket webSocket, Throwable error) {
             log.warn("websocket_disconnected symbol={} reason={}", instrument.symbol(), error.getMessage());
+            statusRegistry.websocketConnected(instrument.symbol(), false);
             scheduleReconnect(instrument, listener, backoff);
         }
 
         @Override
         public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
             log.warn("websocket_disconnected symbol={} statusCode={} reason={}", instrument.symbol(), statusCode, reason);
+            statusRegistry.websocketConnected(instrument.symbol(), false);
             scheduleReconnect(instrument, listener, backoff);
             return null;
         }

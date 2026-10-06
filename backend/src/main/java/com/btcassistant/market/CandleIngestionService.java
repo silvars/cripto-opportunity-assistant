@@ -7,43 +7,39 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.Optional;
 
-/** Orquestra validação, dedupe, detecção de gap, persistência e publicação (SDD §16). */
+/** Orquestra detecção de gap, persistência (via CandlePersister) e publicação (SDD §16). */
 @Service
 public class CandleIngestionService implements CandleListener {
 
     private static final Logger log = LoggerFactory.getLogger(CandleIngestionService.class);
 
+    private final CandlePersister candlePersister;
     private final CandleRepository candleRepository;
     private final CandlePublisher candlePublisher;
     private final GapRecoveryService gapRecoveryService;
+    private final MarketStatusRegistry statusRegistry;
 
-    public CandleIngestionService(CandleRepository candleRepository,
+    public CandleIngestionService(CandlePersister candlePersister,
+                                  CandleRepository candleRepository,
                                   CandlePublisher candlePublisher,
-                                  GapRecoveryService gapRecoveryService) {
+                                  GapRecoveryService gapRecoveryService,
+                                  MarketStatusRegistry statusRegistry) {
+        this.candlePersister = candlePersister;
         this.candleRepository = candleRepository;
         this.candlePublisher = candlePublisher;
         this.gapRecoveryService = gapRecoveryService;
+        this.statusRegistry = statusRegistry;
     }
 
     @Override
     public void onCandle(Candle candle) {
-        CandleValidator.ValidationResult result = CandleValidator.validate(candle);
-        if (!result.valid()) {
-            log.warn("candle_rejected symbol={} openTime={} reason={}", candle.symbol(), candle.openTime(), result.reason());
-            return;
-        }
-
-        boolean alreadyExists = candleRepository
-                .findBySymbolAndIntervalAndOpenTime(candle.symbol(), candle.interval(), candle.openTime())
-                .isPresent();
-        if (alreadyExists) {
-            return;
-        }
-
         detectGap(candle);
 
-        candleRepository.save(CandleEntity.from(candle));
-        log.info("candle_persisted symbol={} interval={} openTime={}", candle.symbol(), candle.interval(), candle.openTime());
+        if (!candlePersister.persist(candle)) {
+            return;
+        }
+
+        statusRegistry.candlePersisted(candle.symbol(), candle.interval(), candle.openTime());
         candlePublisher.publish(candle);
     }
 

@@ -25,6 +25,8 @@ management:
       show-details: always
 
 market:
+  backfill:
+    max-retries: ${BACKFILL_MAX_RETRIES:3}
   instruments:
     - symbol: BTCUSDT
       base-asset: BTC
@@ -32,3 +34,6 @@ market:
       exchange: BINANCE
       interval: 1m
       enabled: true
+      historical-backfill:
+        enabled: ${BACKFILL_ENABLED:true}
+        period: ${BACKFILL_PERIOD:12-months}

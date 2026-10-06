@@ -16,4 +16,8 @@ public class CandlePublisher {
     public void publish(Candle candle) {
         messagingTemplate.convertAndSend("/topic/market/" + candle.symbol(), candle);
     }
+
+    public void publishStatus(MarketStatus status) {
+        messagingTemplate.convertAndSend("/topic/market-status/" + status.symbol(), status);
+    }
 }
