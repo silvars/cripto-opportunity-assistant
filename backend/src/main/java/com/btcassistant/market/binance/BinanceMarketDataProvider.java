@@ -5,12 +5,14 @@ import com.btcassistant.market.CandleListener;
 import com.btcassistant.market.Instrument;
 import com.btcassistant.market.IntervalSupport;
 import com.btcassistant.market.MarketDataProvider;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -74,59 +76,81 @@ public class BinanceMarketDataProvider implements MarketDataProvider {
         Instant cursor = from;
 
         while (cursor.isBefore(to)) {
-            String url = REST_BASE_URL
-                    + "?symbol=" + instrument.symbol()
-                    + "&interval=" + instrument.interval()
-                    + "&startTime=" + cursor.toEpochMilli()
-                    + "&endTime=" + to.toEpochMilli()
-                    + "&limit=" + REST_PAGE_LIMIT;
-
-            HttpRequest request = HttpRequest.newBuilder(URI.create(url)).GET().build();
-            try {
-                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-                if (response.statusCode() == 429 || response.statusCode() == 418) {
-                    long retryAfterSeconds = response.headers().firstValueAsLong("Retry-After").orElse(5);
-                    log.warn("Binance REST rate limited (status={}), retrying after {}s", response.statusCode(), retryAfterSeconds);
-                    sleep(Duration.ofSeconds(retryAfterSeconds));
-                    continue;
-                }
-                if (response.statusCode() != 200) {
-                    log.warn("Binance REST backfill failed with status {}", response.statusCode());
-                    break;
-                }
-
-                JsonNode array = objectMapper.readTree(response.body());
-                if (!array.isArray() || array.isEmpty()) {
-                    break;
-                }
-
-                for (JsonNode row : array) {
-                    result.add(BinanceKlineMapper.fromRest(instrument, row));
-                }
-
-                long lastOpenTimeMs = array.get(array.size() - 1).get(0).asLong();
-                Instant next = Instant.ofEpochMilli(lastOpenTimeMs).plus(IntervalSupport.toDuration(instrument.interval()));
-                if (!next.isAfter(cursor)) {
-                    break; // evita loop infinito caso a Binance devolva o mesmo ponto
-                }
-                cursor = next;
-
-                if (array.size() < REST_PAGE_LIMIT) {
-                    break;
-                }
-            } catch (Exception e) {
-                log.warn("Binance REST backfill error: {}", e.getMessage());
+            PageResult page = fetchPage(instrument, cursor, to);
+            if (page == null) {
                 break;
             }
+            result.addAll(page.candles());
+            if (!page.hasMore()) {
+                break;
+            }
+            cursor = page.nextCursor();
         }
         return result;
+    }
+
+    private record PageResult(List<Candle> candles, Instant nextCursor, boolean hasMore) {
+    }
+
+    private PageResult fetchPage(Instrument instrument, Instant cursor, Instant to) {
+        String url = REST_BASE_URL
+                + "?symbol=" + instrument.symbol()
+                + "&interval=" + instrument.interval()
+                + "&startTime=" + cursor.toEpochMilli()
+                + "&endTime=" + to.toEpochMilli()
+                + "&limit=" + REST_PAGE_LIMIT;
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url)).GET().build();
+
+        try {
+            HttpResponse<String> response = sendWithRateLimitRetry(request);
+            return parsePage(instrument, cursor, response);
+        } catch (IOException e) {
+            log.warn("Binance REST backfill error: {}", e.getMessage());
+            return null;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        }
+    }
+
+    private HttpResponse<String> sendWithRateLimitRetry(HttpRequest request) throws IOException, InterruptedException {
+        while (true) {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 429 && response.statusCode() != 418) {
+                return response;
+            }
+            long retryAfterSeconds = response.headers().firstValueAsLong("Retry-After").orElse(5);
+            log.warn("Binance REST rate limited (status={}), retrying after {}s", response.statusCode(), retryAfterSeconds);
+            sleep(Duration.ofSeconds(retryAfterSeconds));
+        }
+    }
+
+    private PageResult parsePage(Instrument instrument, Instant cursor, HttpResponse<String> response) {
+        if (response.statusCode() != 200) {
+            log.warn("Binance REST backfill failed with status {}", response.statusCode());
+            return null;
+        }
+
+        JsonNode array = objectMapper.readTree(response.body());
+        if (!array.isArray() || array.isEmpty()) {
+            return null;
+        }
+
+        List<Candle> candles = new ArrayList<>();
+        for (JsonNode row : array) {
+            candles.add(BinanceKlineMapper.fromRest(instrument, row));
+        }
+
+        long lastOpenTimeMs = array.get(array.size() - 1).get(0).asLong();
+        Instant next = Instant.ofEpochMilli(lastOpenTimeMs).plus(IntervalSupport.toDuration(instrument.interval()));
+        boolean hasMore = next.isAfter(cursor) && array.size() >= REST_PAGE_LIMIT;
+        return new PageResult(candles, next, hasMore);
     }
 
     private void sleep(Duration duration) {
         try {
             Thread.sleep(duration.toMillis());
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
         }
     }
@@ -158,7 +182,7 @@ public class BinanceMarketDataProvider implements MarketDataProvider {
                 buffer.setLength(0);
                 try {
                     handleMessage(message);
-                } catch (Exception e) {
+                } catch (JacksonException e) {
                     log.warn("Failed to parse Binance kline message for {}: {}", instrument.symbol(), e.getMessage());
                 }
             }
@@ -179,7 +203,7 @@ public class BinanceMarketDataProvider implements MarketDataProvider {
             return null;
         }
 
-        private void handleMessage(String message) throws Exception {
+        private void handleMessage(String message) {
             JsonNode root = objectMapper.readTree(message);
             JsonNode kline = root.path("k");
             if (kline.isMissingNode()) {
