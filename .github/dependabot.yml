@@ -21,6 +21,10 @@ updates:
     directory: /backend
     schedule:
       interval: weekly
+    ignore:
+      # Java 25 é LTS fixado (ADR-001) — não aceitar bump de major version da imagem.
+      - dependency-name: "maven"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
