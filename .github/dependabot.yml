@@ -22,9 +22,10 @@ updates:
     schedule:
       interval: weekly
     ignore:
-      # Java 25 é LTS fixado (ADR-001) — não aceitar bump de major version da imagem.
+      # Java 25 é LTS fixado (ADR-001). Tags Docker ("25"/"26") não são semver
+      # X.Y.Z, então update-types:semver-major não casa aqui — ignorar a
+      # dependência inteira é o jeito que realmente funciona.
       - dependency-name: "maven"
-        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
