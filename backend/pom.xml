@@ -22,7 +22,7 @@
         <!-- SonarCloud (ver docs/phases/FASE-0-walking-skeleton.md e .github/workflows/build.yml) -->
         <sonar.organization>silvars</sonar.organization>
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
-        <sonar.projectKey>silvars_cripto-opportunity-assistant</sonar.projectKey>
+        <sonar.projectKey>ST_COA_BACKEND</sonar.projectKey>
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
     </properties>
 
