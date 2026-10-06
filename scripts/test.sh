@@ -7,6 +7,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/_env.sh"
 cd "$SCRIPT_DIR/../backend"
 echo "==> Rodando testes (unit + integration/Testcontainers)..."
-mvn test "$@"
+mvn clean test "$@"
 echo "==> Resumo:"
 grep -h "Tests run" target/surefire-reports/*.txt 2>/dev/null || true
