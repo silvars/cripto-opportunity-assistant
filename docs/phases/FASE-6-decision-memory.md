@@ -2,7 +2,7 @@
 
 **Depende de:** Fase 5 (Agent)
 **Módulos:** `decision`, `operation`
-**Referência:** [SDD.md](../../SDD.md) seções 52–57, 76
+**Referência:** [SDD.md](../SDD.md) seções 52–57, 76
 
 ---
 

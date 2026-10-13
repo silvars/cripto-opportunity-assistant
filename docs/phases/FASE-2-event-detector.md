@@ -2,7 +2,7 @@
 
 **Depende de:** Fase 1 (Feature Engine)
 **Módulos:** `event`
-**Referência:** [SDD.md](../../SDD.md) seções 20, 21
+**Referência:** [SDD.md](../SDD.md) seções 20, 21
 
 ---
 

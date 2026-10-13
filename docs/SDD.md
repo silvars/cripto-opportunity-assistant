@@ -625,7 +625,9 @@ Recuperação idempotente.
 
 ---
 
-# 15. Backfill inicial
+# 15. Backfill inicial — Initial Historical Backfill
+
+> Esta seção descreve o mecanismo **efetivamente implementado** na Fase 0 (detalhes completos, incluindo API de status e algoritmo de cobertura, em [docs/phases/FASE-0-walking-skeleton.md §10](phases/FASE-0-walking-skeleton.md)).
 
 Primeiro setup, por instrumento habilitado:
 
@@ -640,26 +642,37 @@ Configuração (por instrumento, dentro de `market.instruments`):
 
 ```yaml
 market:
+  backfill:
+    max-retries: ${BACKFILL_MAX_RETRIES:3}
   instruments:
     - symbol: BTCUSDT
       enabled: true
       historical-backfill:
-        enabled: true
+        enabled: ${BACKFILL_ENABLED:true}
         interval: 1m
-        period: 12-months
+        period: ${BACKFILL_PERIOD:12-months}
 ```
 
-Suportar futuramente:
+Suportado hoje: `12-months` (default) e qualquer período no formato `N-days`/`N-months` (ex. `2-days`, usado para validar o fluxo rapidamente em desenvolvimento, sem esperar 12 meses reais). Formas adicionais (`3-months`, `6-months`, `24-months`, custom) já são suportadas pelo mesmo parser (`BackfillPeriod`).
 
-- 3 meses;
-- 6 meses;
-- 12 meses;
-- 24 meses;
-- custom.
+O backfill é modelado como uma máquina de estados explícita e observável (`MarketPhase`), não como uma tarefa "fire-and-forget" no boot:
+
+```text
+INITIALIZING → CHECKING_HISTORY → BACKFILLING ⇄ RETRYING → HISTORICAL_DATA_READY → LIVE
+```
+
+- `CHECKING_HISTORY`: calcula lacunas entre o início requerido e agora (alinhados ao boundary do intervalo, para não gerar falsas lacunas por precisão de nanossegundos).
+- `BACKFILLING` / `RETRYING`: busca cada lacuna via REST; tentativas limitadas por `market.backfill.max-retries` (default 3) antes de desistir daquela lacuna específica (sem travar os demais instrumentos).
+- `HISTORICAL_DATA_READY`: todas as lacunas requeridas cobertas (ou backfill desabilitado por config — não é tratado como erro).
+- `LIVE`: WebSocket de candles ao vivo iniciado. Cada instrumento roda em sua própria thread virtual — um backfill lento ou com falha em um instrumento não bloqueia o boot do contexto Spring nem os demais instrumentos (degradação graciosa).
+
+O estado é exposto via `GET /api/v1/market/status`, `GET /api/v1/market/{symbol}/status` e o tópico WebSocket `/topic/market-status/{symbol}` (record `MarketStatus`: `phase`, `websocketConnected`, `historicalDataReady`, `candleCount`, `earliestCandle`, `latestCandle`, `requiredHistoryStart`, `updatedAt`).
+
+A verificação de cobertura (`HistoricalCoverageChecker`) nunca assume "completo" apenas por `count > 0` — compara a sequência real de `open_time` persistidos contra o intervalo requerido e identifica lacunas no início, no meio e no fim. Isso garante idempotência real: reiniciar a aplicação ou rodar o backfill de novo busca apenas o que ainda falta, nunca reprocessa o que já existe (validado com banco vazio, histórico completo, histórico parcial e re-execução, via Testcontainers).
 
 ---
 
-# 16. Backfill incremental
+# 16. Backfill incremental / gap recovery no live stream
 
 Usar chunks:
 
@@ -677,9 +690,12 @@ Next chunk
 
 Respeitar rate limit da Binance entre chunks (backoff ao receber 429); nunca disparar todos os chunks em paralelo sem controle.
 
-Executar novamente não pode duplicar candles.
+Executar novamente não pode duplicar candles — garantido pela constraint `UNIQUE(symbol, interval, open_time)` somada à checagem de cobertura da seção 15.
+
+Se a conexão WebSocket cair e reconectar, o mesmo mecanismo é acionado sob demanda (`GapRecoveryService`): o intervalo perdido entre o último candle persistido e o candle ao vivo mais recente é buscado via REST, validado e persistido antes de retomar a publicação ao vivo normal.
 
 ---
+
 
 # 17. Integridade dos candles
 
@@ -1966,8 +1982,9 @@ market_connected
 market_disconnected
 market_reconnected
 gap_detected
-backfill_started
-backfill_completed
+historical_backfill_started
+historical_backfill_batch
+historical_backfill_completed
 candle_persisted
 candle_rejected
 event_detected

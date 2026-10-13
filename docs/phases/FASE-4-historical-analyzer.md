@@ -2,7 +2,7 @@
 
 **Depende de:** Fase 3 (Opportunity + Risk)
 **Módulos:** `historical`
-**Referência:** [SDD.md](../../SDD.md) seções 27–31, 59–61, 67
+**Referência:** [SDD.md](../SDD.md) seções 27–31, 59–61, 67
 
 ---
 

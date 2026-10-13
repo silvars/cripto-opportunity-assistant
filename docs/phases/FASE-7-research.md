@@ -2,7 +2,7 @@
 
 **Depende de:** Fase 6 (Decision Memory)
 **Módulos:** `research` (+ uso transversal de `historical`, `opportunity`, `alert`, `decision`)
-**Referência:** [SDD.md](../../SDD.md) seções 58–61, 64–68, 83
+**Referência:** [SDD.md](../SDD.md) seções 58–61, 64–68, 83
 
 ---
 

@@ -2,7 +2,7 @@
 
 **Depende de:** Fase 4 (Historical Analyzer)
 **Módulos:** `agent`
-**Referência:** [SDD.md](../../SDD.md) seções 32–40, 74–75
+**Referência:** [SDD.md](../SDD.md) seções 32–40, 74–75
 
 ---
 

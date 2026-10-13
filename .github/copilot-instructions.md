@@ -1,6 +1,6 @@
 # BTC Opportunity Assistant — Project Guidelines
 
-This repo follows [SDD.md](../SDD.md) (architecture) and the per-phase design docs in [docs/phases/](../docs/phases/). Read the relevant phase doc before implementing anything in that phase.
+This repo follows [SDD.md](../docs/SDD.md) (architecture) and the per-phase design docs in [docs/phases/](../docs/phases/). Read the relevant phase doc before implementing anything in that phase.
 
 ## Architecture
 

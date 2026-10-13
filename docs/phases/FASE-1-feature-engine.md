@@ -2,7 +2,7 @@
 
 **Depende de:** Fase 0 (Walking Skeleton)
 **Módulos:** `feature`
-**Referência:** [SDD.md](../../SDD.md) seções 18, 19
+**Referência:** [SDD.md](../SDD.md) seções 18, 19
 
 ---
 

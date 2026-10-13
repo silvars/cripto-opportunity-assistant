@@ -2,7 +2,7 @@
 
 **Depende de:** Fase 2 (Event Detector)
 **Módulos:** `opportunity`, `risk`, `alert`
-**Referência:** [SDD.md](../../SDD.md) seções 22–26, 41–44
+**Referência:** [SDD.md](../SDD.md) seções 22–26, 41–44
 
 ---
 
