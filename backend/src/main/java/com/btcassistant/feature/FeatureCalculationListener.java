@@ -5,6 +5,7 @@ import com.btcassistant.market.Instrument;
 import com.btcassistant.market.MarketProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -17,13 +18,16 @@ public class FeatureCalculationListener {
     private final MarketProperties marketProperties;
     private final FeatureCalculator featureCalculator;
     private final FeaturePersister featurePersister;
+    private final ApplicationEventPublisher eventPublisher;
 
     public FeatureCalculationListener(MarketProperties marketProperties,
                                       FeatureCalculator featureCalculator,
-                                      FeaturePersister featurePersister) {
+                                      FeaturePersister featurePersister,
+                                      ApplicationEventPublisher eventPublisher) {
         this.marketProperties = marketProperties;
         this.featureCalculator = featureCalculator;
         this.featurePersister = featurePersister;
+        this.eventPublisher = eventPublisher;
     }
 
     @EventListener
@@ -39,6 +43,9 @@ public class FeatureCalculationListener {
             return;
         }
 
-        featurePersister.persist(snapshot);
+        if (featurePersister.persist(snapshot)) {
+            eventPublisher.publishEvent(new FeatureCalculatedEvent(
+                    snapshot.symbol(), snapshot.interval(), snapshot.candleOpenTime(), snapshot.featureVersion()));
+        }
     }
 }

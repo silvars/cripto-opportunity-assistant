@@ -10,6 +10,7 @@ import jakarta.persistence.UniqueConstraint;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 
 /** Entidade de persistência — nunca exposta diretamente na API (SDD §70). Linhas são imutáveis: mudança de fórmula gera novo {@code featureVersion}, nunca sobrescreve (SDD §19). */
@@ -144,6 +145,39 @@ public class MarketFeatureEntity {
 
         entity.createdAt = Instant.now();
         return entity;
+    }
+
+    /** Reconstrói o {@link FeatureSnapshot} de domínio a partir das colunas tipadas (inverso de {@link #from}). */
+    public FeatureSnapshot toSnapshot() {
+        Map<String, BigDecimal> values = new HashMap<>();
+        values.put(FeatureNames.RETURN_1M, return1m);
+        values.put(FeatureNames.RETURN_5M, return5m);
+        values.put(FeatureNames.RETURN_15M, return15m);
+        values.put(FeatureNames.RETURN_30M, return30m);
+        values.put(FeatureNames.RETURN_1H, return1h);
+        values.put(FeatureNames.RETURN_4H, return4h);
+        values.put(FeatureNames.RETURN_12H, return12h);
+        values.put(FeatureNames.RETURN_24H, return24h);
+        values.put(FeatureNames.VOLUME_SMA, volumeSma);
+        values.put(FeatureNames.VOLUME_RATIO, volumeRatio);
+        values.put(FeatureNames.VOLUME_ZSCORE, volumeZscore);
+        values.put(FeatureNames.VOLATILITY_15M, volatility15m);
+        values.put(FeatureNames.VOLATILITY_1H, volatility1h);
+        values.put(FeatureNames.VOLATILITY_4H, volatility4h);
+        values.put(FeatureNames.VOLATILITY_24H, volatility24h);
+        values.put(FeatureNames.DISTANCE_RECENT_HIGH_1H, distanceRecentHigh1h);
+        values.put(FeatureNames.DISTANCE_RECENT_HIGH_4H, distanceRecentHigh4h);
+        values.put(FeatureNames.DISTANCE_RECENT_HIGH_24H, distanceRecentHigh24h);
+        values.put(FeatureNames.DISTANCE_RECENT_LOW_1H, distanceRecentLow1h);
+        values.put(FeatureNames.DISTANCE_RECENT_LOW_4H, distanceRecentLow4h);
+        values.put(FeatureNames.DISTANCE_RECENT_LOW_24H, distanceRecentLow24h);
+        values.put(FeatureNames.MOMENTUM_5M, momentum5m);
+        values.put(FeatureNames.MOMENTUM_15M, momentum15m);
+        values.put(FeatureNames.MOMENTUM_1H, momentum1h);
+        values.put(FeatureNames.MOMENTUM_4H, momentum4h);
+        values.put(FeatureNames.DRAWDOWN_FROM_RECENT_HIGH, drawdownFromRecentHigh);
+        values.put(FeatureNames.RECOVERY_FROM_RECENT_LOW, recoveryFromRecentLow);
+        return new FeatureSnapshot(symbol, interval, candleOpenTime, featureVersion, values);
     }
 
     public Long getId() {

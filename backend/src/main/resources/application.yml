@@ -42,3 +42,6 @@ feature-engine:
   version: "1.0"
   windows:
     volume-sma: 20
+
+event-detector:
+  engine-version: "1.0"

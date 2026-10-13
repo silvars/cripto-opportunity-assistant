@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -30,9 +31,11 @@ class FeatureCalculationListenerTest {
     private FeatureCalculator featureCalculator;
     @Mock
     private FeaturePersister featurePersister;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     private FeatureCalculationListener listener() {
-        return new FeatureCalculationListener(marketProperties, featureCalculator, featurePersister);
+        return new FeatureCalculationListener(marketProperties, featureCalculator, featurePersister, eventPublisher);
     }
 
     @Test
@@ -56,14 +59,29 @@ class FeatureCalculationListenerTest {
     }
 
     @Test
-    void persistsSnapshotWhenCalculated() {
+    void persistsSnapshotAndPublishesEventWhenCalculated() {
         FeatureSnapshot snapshot = new FeatureSnapshot("BTCUSDT", "1m", OPEN_TIME, "1.0",
                 Map.of(FeatureNames.RETURN_1M, new BigDecimal("0.01")));
         when(marketProperties.findEnabled("BTCUSDT", "1m")).thenReturn(INSTRUMENT);
         when(featureCalculator.calculate(INSTRUMENT, OPEN_TIME)).thenReturn(snapshot);
+        when(featurePersister.persist(snapshot)).thenReturn(true);
 
         listener().onCandlePersisted(EVENT);
 
         verify(featurePersister).persist(snapshot);
+        verify(eventPublisher).publishEvent(new FeatureCalculatedEvent("BTCUSDT", "1m", OPEN_TIME, "1.0"));
+    }
+
+    @Test
+    void doesNotPublishEventWhenSnapshotWasNotNewlyPersisted() {
+        FeatureSnapshot snapshot = new FeatureSnapshot("BTCUSDT", "1m", OPEN_TIME, "1.0",
+                Map.of(FeatureNames.RETURN_1M, new BigDecimal("0.01")));
+        when(marketProperties.findEnabled("BTCUSDT", "1m")).thenReturn(INSTRUMENT);
+        when(featureCalculator.calculate(INSTRUMENT, OPEN_TIME)).thenReturn(snapshot);
+        when(featurePersister.persist(snapshot)).thenReturn(false);
+
+        listener().onCandlePersisted(EVENT);
+
+        verify(eventPublisher, never()).publishEvent(any());
     }
 }
