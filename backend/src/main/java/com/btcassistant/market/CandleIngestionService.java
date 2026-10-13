@@ -2,6 +2,7 @@ package com.btcassistant.market;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -18,17 +19,20 @@ public class CandleIngestionService implements CandleListener {
     private final CandlePublisher candlePublisher;
     private final GapRecoveryService gapRecoveryService;
     private final MarketStatusRegistry statusRegistry;
+    private final ApplicationEventPublisher eventPublisher;
 
     public CandleIngestionService(CandlePersister candlePersister,
                                   CandleRepository candleRepository,
                                   CandlePublisher candlePublisher,
                                   GapRecoveryService gapRecoveryService,
-                                  MarketStatusRegistry statusRegistry) {
+                                  MarketStatusRegistry statusRegistry,
+                                  ApplicationEventPublisher eventPublisher) {
         this.candlePersister = candlePersister;
         this.candleRepository = candleRepository;
         this.candlePublisher = candlePublisher;
         this.gapRecoveryService = gapRecoveryService;
         this.statusRegistry = statusRegistry;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -41,6 +45,7 @@ public class CandleIngestionService implements CandleListener {
 
         statusRegistry.candlePersisted(candle.symbol(), candle.interval(), candle.openTime());
         candlePublisher.publish(candle);
+        eventPublisher.publishEvent(new CandlePersistedEvent(candle.symbol(), candle.interval(), candle.openTime()));
     }
 
     private void detectGap(Candle candle) {

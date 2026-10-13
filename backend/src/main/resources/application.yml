@@ -37,3 +37,8 @@ market:
       historical-backfill:
         enabled: ${BACKFILL_ENABLED:true}
         period: ${BACKFILL_PERIOD:12-months}
+
+feature-engine:
+  version: "1.0"
+  windows:
+    volume-sma: 20

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -28,12 +29,14 @@ class CandleIngestionServiceTest {
     private GapRecoveryService gapRecoveryService;
     @Mock
     private MarketStatusRegistry statusRegistry;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     private CandleIngestionService service;
 
     @BeforeEach
     void setUp() {
-        service = new CandleIngestionService(candlePersister, candleRepository, candlePublisher, gapRecoveryService, statusRegistry);
+        service = new CandleIngestionService(candlePersister, candleRepository, candlePublisher, gapRecoveryService, statusRegistry, eventPublisher);
     }
 
     private static Candle candle(Instant openTime) {
@@ -51,6 +54,7 @@ class CandleIngestionServiceTest {
         service.onCandle(candle);
 
         verify(candlePublisher).publish(candle);
+        verify(eventPublisher).publishEvent(new CandlePersistedEvent("BTCUSDT", "1m", candle.openTime()));
     }
 
     @Test
@@ -62,6 +66,7 @@ class CandleIngestionServiceTest {
         service.onCandle(candle);
 
         verify(candlePublisher, never()).publish(any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
