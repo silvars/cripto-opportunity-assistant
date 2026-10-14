@@ -32,6 +32,14 @@ public class MarketProperties {
                 .orElse(null);
     }
 
+    /** MVP roda com um único intervalo configurado por símbolo (SDD §1) — não ambíguo buscar só por symbol. */
+    public Instrument findEnabledBySymbol(String symbol) {
+        return enabledInstruments().stream()
+                .filter(i -> i.symbol().equals(symbol))
+                .findFirst()
+                .orElse(null);
+    }
+
     public static class InstrumentConfig {
 
         private String symbol;

@@ -12,12 +12,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -36,6 +38,8 @@ class EventDetectorTest {
     private CandleRepository candleRepository;
     @Mock
     private EventPersister eventPersister;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     private static Candle candle(BigDecimal close) {
         return new Candle("BTCUSDT", "1m", OPEN_TIME, OPEN_TIME.plusSeconds(59),
@@ -56,10 +60,11 @@ class EventDetectorTest {
                 .thenReturn(Optional.of(CandleEntity.from(candle(new BigDecimal("100")))));
         when(featureRepository.findTop5BySymbolAndIntervalAndFeatureVersionAndCandleOpenTimeLessThanOrderByCandleOpenTimeDesc(
                 "BTCUSDT", "1m", "1.0", OPEN_TIME)).thenReturn(List.of());
+        when(eventPersister.persist(any(DetectedEvent.class))).thenReturn(UUID.randomUUID());
 
         EventProperties properties = new EventProperties();
         EventDetector detector = new EventDetector(featureRepository, candleRepository,
-                List.of(new RapidDropRule(properties), new RapidRiseRule(properties)), eventPersister);
+                List.of(new RapidDropRule(properties), new RapidRiseRule(properties)), eventPersister, eventPublisher);
 
         detector.onFeatureCalculated(EVENT);
 
@@ -71,7 +76,7 @@ class EventDetectorTest {
         when(featureRepository.findBySymbolAndIntervalAndCandleOpenTimeAndFeatureVersion("BTCUSDT", "1m", OPEN_TIME, "1.0"))
                 .thenReturn(Optional.empty());
 
-        EventDetector detector = new EventDetector(featureRepository, candleRepository, List.of(), eventPersister);
+        EventDetector detector = new EventDetector(featureRepository, candleRepository, List.of(), eventPersister, eventPublisher);
 
         detector.onFeatureCalculated(EVENT);
 
@@ -84,7 +89,7 @@ class EventDetectorTest {
                 .thenReturn(Optional.of(MarketFeatureEntity.from(snapshot(Map.of()))));
         when(candleRepository.findBySymbolAndIntervalAndOpenTime("BTCUSDT", "1m", OPEN_TIME)).thenReturn(Optional.empty());
 
-        EventDetector detector = new EventDetector(featureRepository, candleRepository, List.of(), eventPersister);
+        EventDetector detector = new EventDetector(featureRepository, candleRepository, List.of(), eventPersister, eventPublisher);
 
         detector.onFeatureCalculated(EVENT);
 

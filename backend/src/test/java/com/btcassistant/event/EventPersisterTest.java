@@ -10,8 +10,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class EventPersisterTest {
@@ -20,13 +22,15 @@ class EventPersisterTest {
     private MarketEventRepository eventRepository;
 
     @Test
-    void savesEntityBuiltFromDetectedEvent() {
+    void savesEntityBuiltFromDetectedEventAndReturnsGeneratedId() {
         EventPersister persister = new EventPersister(eventRepository);
         DetectedEvent event = new DetectedEvent("BTCUSDT", EventTypes.RAPID_DROP, Instant.parse("2026-01-01T00:00:00Z"),
                 new BigDecimal("100"), Map.of(), new BigDecimal("0.03"), Duration.ofMinutes(15), "1.0");
+        when(eventRepository.save(any(MarketEventEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        persister.persist(event);
+        java.util.UUID eventId = persister.persist(event);
 
+        assertThat(eventId).isNotNull();
         verify(eventRepository).save(any(MarketEventEntity.class));
     }
 }

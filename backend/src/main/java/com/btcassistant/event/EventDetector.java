@@ -8,6 +8,7 @@ import com.btcassistant.market.CandleEntity;
 import com.btcassistant.market.CandleRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +16,7 @@ import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /** Orquestra todas as {@link EventRule} a cada novo {@link FeatureSnapshot} (SDD Fase 2 §4/§6). */
 @Component
@@ -26,15 +28,18 @@ public class EventDetector {
     private final CandleRepository candleRepository;
     private final List<EventRule> rules;
     private final EventPersister eventPersister;
+    private final ApplicationEventPublisher eventPublisher;
 
     public EventDetector(MarketFeatureRepository featureRepository,
                          CandleRepository candleRepository,
                          List<EventRule> rules,
-                         EventPersister eventPersister) {
+                         EventPersister eventPersister,
+                         ApplicationEventPublisher eventPublisher) {
         this.featureRepository = featureRepository;
         this.candleRepository = candleRepository;
         this.rules = rules;
         this.eventPersister = eventPersister;
+        this.eventPublisher = eventPublisher;
     }
 
     @EventListener
@@ -55,7 +60,10 @@ public class EventDetector {
         FeatureHistory history = loadHistory(event);
 
         for (EventRule rule : rules) {
-            rule.evaluate(price, current, history).ifPresent(eventPersister::persist);
+            rule.evaluate(price, current, history).ifPresent(detected -> {
+                UUID eventId = eventPersister.persist(detected);
+                eventPublisher.publishEvent(new MarketEventPersistedEvent(eventId, detected));
+            });
         }
     }
 

@@ -45,3 +45,15 @@ feature-engine:
 
 event-detector:
   engine-version: "1.0"
+
+opportunity:
+  watch-threshold: 50
+  setup-threshold: 65
+  strong-setup-threshold: 80
+  config-version: "1.0"
+
+risk: {}
+
+alerts:
+  cooldown: 15m
+  dedup-window: 15m
