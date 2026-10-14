@@ -154,3 +154,51 @@ Eventos: `decision_registered`, `operation_created`, `operation_updated`.
 ## 10. Riscos conhecidos
 
 - Sem OCR nesta fase, a qualidade do dado de operação depende inteiramente da entrada manual do usuário — aceitável para o MVP, mas deixar o campo `source: MANUAL` explícito para diferenciar de uma futura extração automática.
+
+## 11. Decisões de implementação
+
+Desvios e decisões tomadas durante a implementação real, em relação ao desenho inicial acima:
+
+- **FK circular entre `trades` e `operations` resolvida com `ALTER TABLE`.** O modelo declara
+  `trades.entry_operation_id`/`exit_operation_id` apontando para `operations`, mas `operations`
+  referencia `trades.trade_id` — as duas tabelas não podem ter FK uma pra outra na mesma
+  migration de criação. Solução: `V10__create_trades.sql` cria as colunas `entry_operation_id`/
+  `exit_operation_id` como `UUID` simples (sem constraint); `V11__create_operations.sql` cria
+  `operations` e, na sequência, faz `ALTER TABLE trades ADD CONSTRAINT ... FOREIGN KEY`
+  fechando o vínculo bidirecional. Nenhuma migration já aplicada foi editada — só adição.
+- **Um trade por decisão, com exatamente uma entrada e uma saída nesta fase.** O contrato do SDD
+  não detalha o que fazer se uma segunda decisão quiser reabrir posição após um trade já fechado,
+  nem operações parciais (entradas/saídas escalonadas). `OperationService.registerOperation`
+  implementa a regra mais simples e segura: a 1ª operação registrada para um `decisionId vira a
+  entrada (cria o `Trade` OPEN); a 2ª vira a saída e fecha o trade (valida que o lado é oposto ao
+  da entrada e que a quantidade é a mesma); uma 3ª tentativa para o mesmo `decisionId` é rejeitada
+  com `400`. Revisitar se o produto precisar de posições escalonadas/parciais no futuro.
+- **P&L nunca é persistido** — não existe coluna `gross_pnl`/`net_pnl` em `trades` (igual ao SQL
+  do §3 acima). `PnlCalculator.calculate(...)` é sempre recalculado on-the-fly a partir das duas
+  `Operation` quando o trade está `CLOSED` (`GET /api/v1/trades/{id}`), nunca armazenado —
+  evita que uma mudança futura na fórmula de P&L exija migration ou reprocessamento em massa.
+- **`PnlCalculator` opera diretamente sobre `TradeEntity`/`OperationEntity`** (entidades JPA), não
+  sobre tipos de domínio `Trade`/`Operation` paralelos como sugerido no §4 — mesmo padrão já
+  adotado na Fase 5 (reuso de entidade já persistida em vez de duplicar a mesma informação em
+  dois formatos).
+- **`fees`/`estimatedSlippage` são opcionais no request.** Quando o cliente não informa (`null`),
+  `OperationService` aplica os defaults configuráveis (`operations.default-fee-rate`/
+  `default-slippage-estimate`) sobre o notional da operação — nunca hardcoded no código.
+- **Novo pacote compartilhado `com.btcassistant.web`** (`NotFoundException` +
+  `GlobalExceptionHandler`): esta é a primeira fase com endpoints que mutam estado (POST) e podem
+  falhar de forma significativa para o cliente (404/400) — fases anteriores só tinham leitura
+  (GET) e nunca precisaram de um ponto central de tradução de erro HTTP. Cobre também
+  `MethodArgumentNotValidException` (Bean Validation) e `MaxUploadSizeExceededException`
+  (upload de screenshot acima do limite do Spring).
+- **Validação de screenshot (SDD §76 — "uploads validados por tipo/tamanho antes de persistir"):**
+  valida `content-type` contra uma allowlist configurável (`operations.screenshots.allowed-
+  content-types`) e tamanho máximo (`max-size-bytes`), tanto na aplicação quanto via
+  `spring.servlet.multipart.max-file-size` (defesa em profundidade). O nome do arquivo original
+  enviado pelo cliente NUNCA é usado para montar o caminho em disco — o nome final é sempre
+  `{operationId}-{UUID aleatório}.{extensão derivada do content-type validado}`, prevenindo path
+  traversal e upload de executáveis disfarçados de imagem por extensão.
+- **Dois endpoints de leitura adicionados além do fluxo de POST do §6**: `GET
+  /api/v1/decisions/{alertId}` e `GET /api/v1/trades/{tradeId}` (este último já retorna o P&L
+  quando o trade está fechado). Sem eles, os dados registrados ficariam inacessíveis via API —
+  nenhuma fase anterior deixou de expor pelo menos uma leitura do que persiste.
+

@@ -11,6 +11,10 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
 
 server:
   port: ${SERVER_PORT:8080}
@@ -90,3 +94,14 @@ agent:
   ollama:
     base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
     model: ${OLLAMA_MODEL:llama3.1:8b}
+
+operations:
+  default-fee-rate: 0.001
+  default-slippage-estimate: 0.0005
+  screenshots:
+    storage-path: ${SCREENSHOTS_STORAGE_PATH:./data/screenshots}
+    max-size-bytes: 5242880
+    allowed-content-types:
+      - image/png
+      - image/jpeg
+      - image/webp
