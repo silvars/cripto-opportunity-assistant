@@ -1,10 +1,12 @@
 package com.btcassistant.alert;
 
 import com.btcassistant.event.DetectedEvent;
+import com.btcassistant.historical.HistoricalContext;
 import com.btcassistant.opportunity.Classification;
 import com.btcassistant.opportunity.MarketOpportunityEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -27,13 +29,16 @@ public class AlertService {
 
     private final AlertRepository repository;
     private final AlertProperties properties;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public AlertService(AlertRepository repository, AlertProperties properties) {
+    public AlertService(AlertRepository repository, AlertProperties properties, ApplicationEventPublisher eventPublisher) {
         this.repository = repository;
         this.properties = properties;
+        this.eventPublisher = eventPublisher;
     }
 
-    public Optional<AlertEntity> process(MarketOpportunityEntity opportunity, DetectedEvent event) {
+    public Optional<AlertEntity> process(MarketOpportunityEntity opportunity, DetectedEvent event,
+                                         Optional<HistoricalContext> historicalContext) {
         if (opportunity.getClassification() == Classification.NONE) {
             return Optional.empty();
         }
@@ -55,6 +60,7 @@ public class AlertService {
         repository.save(created);
         log.info("alert_created symbol={} direction={} alertId={} classification={} score={}",
                 created.getSymbol(), created.getDirection(), created.getAlertId(), created.getClassification(), created.getScore());
+        eventPublisher.publishEvent(new AlertCreatedEvent(created, event, historicalContext));
         return Optional.of(created);
     }
 

@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -37,6 +38,8 @@ class AlertServiceTest {
 
     @Mock
     private AlertRepository repository;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     private final AlertProperties properties = new AlertProperties();
     private AlertService service;
@@ -68,9 +71,9 @@ class AlertServiceTest {
 
     @Test
     void neverCreatesAlertWhenClassificationIsNone() {
-        service = new AlertService(repository, properties);
+        service = new AlertService(repository, properties, eventPublisher);
 
-        Optional<AlertEntity> result = service.process(opportunity(Classification.NONE), detectedEvent());
+        Optional<AlertEntity> result = service.process(opportunity(Classification.NONE), detectedEvent(), Optional.empty());
 
         assertThat(result).isEmpty();
         verify(repository, never()).findTopBySymbolAndDirectionOrderByCreatedAtDesc(any(), any());
@@ -78,24 +81,25 @@ class AlertServiceTest {
 
     @Test
     void createsNewAlertWhenNoneExistsYet() {
-        service = new AlertService(repository, properties);
+        service = new AlertService(repository, properties, eventPublisher);
         when(repository.findTopBySymbolAndDirectionOrderByCreatedAtDesc("BTCUSDT", Direction.BUY)).thenReturn(Optional.empty());
         when(repository.save(any(AlertEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Optional<AlertEntity> result = service.process(opportunity(Classification.SETUP), detectedEvent());
+        Optional<AlertEntity> result = service.process(opportunity(Classification.SETUP), detectedEvent(), Optional.empty());
 
         assertThat(result).isPresent();
         assertThat(result.get().getStatus()).isEqualTo(AlertStatus.ACTIVE);
+        verify(eventPublisher).publishEvent(any(AlertCreatedEvent.class));
     }
 
     @Test
     void suppressesNewAlertWhenAnActiveOneAlreadyExists() {
-        service = new AlertService(repository, properties);
+        service = new AlertService(repository, properties, eventPublisher);
         Instant now = Instant.now();
         AlertEntity existing = existingAlert(AlertStatus.ACTIVE, now.minus(Duration.ofMinutes(5)), now.plus(Duration.ofMinutes(10)));
         when(repository.findTopBySymbolAndDirectionOrderByCreatedAtDesc("BTCUSDT", Direction.BUY)).thenReturn(Optional.of(existing));
 
-        Optional<AlertEntity> result = service.process(opportunity(Classification.SETUP), detectedEvent());
+        Optional<AlertEntity> result = service.process(opportunity(Classification.SETUP), detectedEvent(), Optional.empty());
 
         assertThat(result).isEmpty();
         verify(repository, never()).save(any());
@@ -103,14 +107,14 @@ class AlertServiceTest {
 
     @Test
     void expiresStaleActiveAlertAndCreatesNewOneWhenDedupWindowAlsoPassed() {
-        service = new AlertService(repository, properties);
+        service = new AlertService(repository, properties, eventPublisher);
         Instant now = Instant.now();
         // criado há 20min, expirou há 5min — e dedup-window (15min) também já passou
         AlertEntity existing = existingAlert(AlertStatus.ACTIVE, now.minus(Duration.ofMinutes(20)), now.minus(Duration.ofMinutes(5)));
         when(repository.findTopBySymbolAndDirectionOrderByCreatedAtDesc("BTCUSDT", Direction.BUY)).thenReturn(Optional.of(existing));
         when(repository.save(any(AlertEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Optional<AlertEntity> result = service.process(opportunity(Classification.SETUP), detectedEvent());
+        Optional<AlertEntity> result = service.process(opportunity(Classification.SETUP), detectedEvent(), Optional.empty());
 
         assertThat(result).isPresent();
         verify(existing).transitionTo(AlertStatus.EXPIRED);
@@ -119,14 +123,14 @@ class AlertServiceTest {
 
     @Test
     void expiresStaleActiveAlertButStillSuppressesWithinDedupWindow() {
-        service = new AlertService(repository, properties);
+        service = new AlertService(repository, properties, eventPublisher);
         Instant now = Instant.now();
         // criado há 10min, expirou há 1min (cooldown mais curto que dedup-window) — mas ainda
         // dentro da janela de dedup de 15min
         AlertEntity existing = existingAlert(AlertStatus.ACTIVE, now.minus(Duration.ofMinutes(10)), now.minus(Duration.ofMinutes(1)));
         when(repository.findTopBySymbolAndDirectionOrderByCreatedAtDesc("BTCUSDT", Direction.BUY)).thenReturn(Optional.of(existing));
 
-        Optional<AlertEntity> result = service.process(opportunity(Classification.SETUP), detectedEvent());
+        Optional<AlertEntity> result = service.process(opportunity(Classification.SETUP), detectedEvent(), Optional.empty());
 
         assertThat(result).isEmpty();
         verify(existing).transitionTo(AlertStatus.EXPIRED);
@@ -135,12 +139,12 @@ class AlertServiceTest {
 
     @Test
     void suppressesWhenMostRecentAlertIsAlreadyExpiredButStillWithinDedupWindow() {
-        service = new AlertService(repository, properties);
+        service = new AlertService(repository, properties, eventPublisher);
         Instant now = Instant.now();
         AlertEntity existing = existingAlert(AlertStatus.EXPIRED, now.minus(Duration.ofMinutes(5)), now.minus(Duration.ofMinutes(1)));
         when(repository.findTopBySymbolAndDirectionOrderByCreatedAtDesc("BTCUSDT", Direction.BUY)).thenReturn(Optional.of(existing));
 
-        Optional<AlertEntity> result = service.process(opportunity(Classification.SETUP), detectedEvent());
+        Optional<AlertEntity> result = service.process(opportunity(Classification.SETUP), detectedEvent(), Optional.empty());
 
         assertThat(result).isEmpty();
         verify(repository, never()).save(any());
@@ -148,13 +152,13 @@ class AlertServiceTest {
 
     @Test
     void createsNewAlertWhenMostRecentIsExpiredAndDedupWindowPassed() {
-        service = new AlertService(repository, properties);
+        service = new AlertService(repository, properties, eventPublisher);
         Instant now = Instant.now();
         AlertEntity existing = existingAlert(AlertStatus.EXPIRED, now.minus(Duration.ofMinutes(30)), now.minus(Duration.ofMinutes(20)));
         when(repository.findTopBySymbolAndDirectionOrderByCreatedAtDesc("BTCUSDT", Direction.BUY)).thenReturn(Optional.of(existing));
         when(repository.save(any(AlertEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Optional<AlertEntity> result = service.process(opportunity(Classification.SETUP), detectedEvent());
+        Optional<AlertEntity> result = service.process(opportunity(Classification.SETUP), detectedEvent(), Optional.empty());
 
         assertThat(result).isPresent();
         verify(repository, times(1)).save(any());

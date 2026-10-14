@@ -94,7 +94,7 @@ public class OpportunityPipeline {
         MarketOpportunityEntity opportunity = opportunityPersister.persist(persistedEvent.eventId(), event.symbol(), result, risk);
 
         if (result.classification() != Classification.NONE) {
-            alertService.process(opportunity, event);
+            alertService.process(opportunity, event, historicalContextOptional);
         }
     }
 }

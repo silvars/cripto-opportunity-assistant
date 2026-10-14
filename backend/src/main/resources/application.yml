@@ -79,3 +79,14 @@ research:
     stop-definition-version: "1.0"
     target-percentage: 0.01
     stop-percentage: 0.01
+
+agent:
+  enabled: ${AGENT_ENABLED:true}
+  timeout: 30s
+  max-retries: 1
+  trigger-threshold: 50
+  version: "1.0"
+  prompt-version: "1.0"
+  ollama:
+    base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+    model: ${OLLAMA_MODEL:llama3.1:8b}

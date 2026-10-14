@@ -151,3 +151,53 @@ Eventos: `agent_started`, `agent_completed`, `agent_failed` (já previstos na se
 ## 10. Riscos conhecidos
 
 - Modelos locais variam muito em aderência a JSON estrito — reforçar com retry + validação de schema, não com confiança no prompt isoladamente.
+
+## 11. Decisões de implementação
+
+Desvios e decisões tomadas durante a implementação real, em relação ao desenho inicial acima:
+
+- **Sem arquitetura de "tools" chamadas pelo LLM.** O desenho original previa um agente que chama
+  tools (`getCurrentMarketState`, `getMarketFeatures`, etc.) sob demanda. A implementação real
+  busca TODO o contexto adiantado (`AgentContextBuilder`) e inclui tudo em um único prompt
+  (`PromptBuilder`), numa única chamada HTTP ao Ollama (`/api/generate`, `stream: false,
+  format: "json"`). Isso é mais simples, determinístico e fácil de testar/auditar do que um loop
+  de tool-calling, e `llama3.1:8b` rodando localmente em hardware modesto (Mac i7/16GB) não se
+  beneficiaria de latência extra de múltiplas idas e vindas. Caso o modelo evolua para suportar
+  tool-calling nativo com mais confiabilidade, essa decisão pode ser revisitada.
+- **`classification`/`direction`/`score`/`risk`/`historicalContext` são sempre ecoados do que já
+  foi calculado deterministicamente** (`MarketOpportunityEntity`, `RiskAssessment`,
+  `HistoricalContext` já persistidos) — o LLM nunca os decide, apenas interpreta. Apenas
+  `summary`/`evidence`/`confidence`/`invalidations` vêm da resposta do modelo
+  (`AgentNarrative`/`AgentNarrativeJson`). Isso é reforçado estruturalmente: o tipo de retorno de
+  `AgentProvider.analyze(...)` é `AgentNarrative` (só os 4 campos interpretativos), nunca
+  `AgentAnalysis` completo — o orquestrador (`AgentOrchestrator`) é quem monta o `AgentAnalysis`
+  final combinando o que já existia com a narrativa do LLM.
+- **Reuso de tipos existentes em vez de novos tipos espelhados.** `AgentContext.opportunity` usa
+  `MarketOpportunityEntity` (já persistida) em vez de recriar um `OpportunityResult` novo;
+  `AgentContext.risk`/`AgentAnalysis.risk` usam `risk.RiskAssessment` em vez de um `RiskSummary`
+  dedicado — evita duplicar a mesma informação em dois formatos.
+- **Trigger no evento certo.** O agente reage a `AlertCreatedEvent` (publicado pelo `AlertService`
+  apenas quando um alerta NOVO é de fato criado, nunca em ocorrências deduplicadas — ver Fase 3),
+  não a um evento genérico de "oportunidade criada". Isso evita rodar o LLM repetidamente para o
+  mesmo movimento de mercado já alertado.
+- **`OllamaHealthIndicator` sempre retorna `Health.up()`**, nunca `down()`, mesmo com Ollama
+  inacessível — o status real vai no detail `ollamaReachable` (SDD §75: "Ollama indisponível não
+  derruba health geral"). Deliberadamente não usamos uma modelagem alternativa (ex.: status
+  `UNKNOWN`) para manter o agregado de `/actuator/health` simples de consumir por quem só olha
+  `status == UP/DOWN`.
+- **Spring Boot 4 moveu toda a infraestrutura de health check para um módulo novo**,
+  `org.springframework.boot:spring-boot-health` (vem transitivamente via
+  `spring-boot-starter-actuator`, sem necessidade de dependência explícita no `pom.xml`). As
+  classes `Health`/`HealthIndicator` saíram de `org.springframework.boot.actuate.health` e agora
+  vivem em `org.springframework.boot.health.contributor` — mesma API (`Health.up().withDetail(...)
+  .build()`), só o pacote mudou.
+- **Retry simples sem backoff.** `max-retries` (config) tenta novamente na mesma chamada síncrona,
+  sem espera entre tentativas — adequado porque o próprio timeout de 30s por tentativa já limita o
+  tempo total, e o volume de chamadas (só em alertas novos acima do threshold) é baixo o suficiente
+  para não sobrecarregar um Ollama local rodando na mesma máquina.
+- **`docker-compose.yml`**: como o Ollama roda no HOST (instalado pelo usuário fora do stack
+  Docker, não como um container do `docker-compose.yml`), `OLLAMA_BASE_URL` dentro do container
+  `api` aponta para `http://host.docker.internal:11434` (não `http://localhost:11434`, que dentro
+  de um container resolveria para o próprio container). Adicionado `extra_hosts:
+  host.docker.internal:host-gateway` para portabilidade em Linux (no Docker Desktop macOS/Windows
+  isso já funciona nativamente).
