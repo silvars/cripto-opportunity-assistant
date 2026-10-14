@@ -78,11 +78,16 @@ historical-analyzer:
     fixed-delay-ms: 300000
 
 research:
+  experiments-path: research/experiments
   outcome:
     target-definition-version: "1.0"
     stop-definition-version: "1.0"
     target-percentage: 0.01
     stop-percentage: 0.01
+  evaluation:
+    horizons: [5m, 15m, 30m, 1h, 4h, 12h, 24h]
+    canonical-horizon: "24h"
+    fixed-delay-ms: 300000
 
 agent:
   enabled: ${AGENT_ENABLED:true}
