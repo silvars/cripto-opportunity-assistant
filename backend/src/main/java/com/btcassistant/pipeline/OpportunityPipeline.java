@@ -6,6 +6,8 @@ import com.btcassistant.feature.FeatureProperties;
 import com.btcassistant.feature.FeatureSnapshot;
 import com.btcassistant.feature.MarketFeatureEntity;
 import com.btcassistant.feature.MarketFeatureRepository;
+import com.btcassistant.historical.HistoricalAnalyzer;
+import com.btcassistant.historical.HistoricalContext;
 import com.btcassistant.market.Instrument;
 import com.btcassistant.market.MarketProperties;
 import com.btcassistant.opportunity.Classification;
@@ -43,6 +45,7 @@ public class OpportunityPipeline {
     private final FeatureProperties featureProperties;
     private final OpportunityEngine opportunityEngine;
     private final RiskEngine riskEngine;
+    private final HistoricalAnalyzer historicalAnalyzer;
     private final OpportunityPersister opportunityPersister;
     private final AlertService alertService;
 
@@ -51,6 +54,7 @@ public class OpportunityPipeline {
                                FeatureProperties featureProperties,
                                OpportunityEngine opportunityEngine,
                                RiskEngine riskEngine,
+                               HistoricalAnalyzer historicalAnalyzer,
                                OpportunityPersister opportunityPersister,
                                AlertService alertService) {
         this.marketProperties = marketProperties;
@@ -58,6 +62,7 @@ public class OpportunityPipeline {
         this.featureProperties = featureProperties;
         this.opportunityEngine = opportunityEngine;
         this.riskEngine = riskEngine;
+        this.historicalAnalyzer = historicalAnalyzer;
         this.opportunityPersister = opportunityPersister;
         this.alertService = alertService;
     }
@@ -80,7 +85,10 @@ public class OpportunityPipeline {
         }
 
         FeatureSnapshot features = featureEntity.get().toSnapshot();
-        OpportunityResult result = opportunityEngine.evaluate(event, features, Optional.empty());
+        HistoricalContext historicalContext = historicalAnalyzer.findSimilar(event, event.eventTime());
+        Optional<HistoricalContext> historicalContextOptional = historicalContext.outcomesByHorizon().isEmpty()
+                ? Optional.empty() : Optional.of(historicalContext);
+        OpportunityResult result = opportunityEngine.evaluate(event, features, historicalContextOptional);
         RiskAssessment risk = riskEngine.assess(event, features);
 
         MarketOpportunityEntity opportunity = opportunityPersister.persist(persistedEvent.eventId(), event.symbol(), result, risk);

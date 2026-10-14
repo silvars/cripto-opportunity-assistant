@@ -57,3 +57,25 @@ risk: {}
 alerts:
   cooldown: 15m
   dedup-window: 15m
+
+historical-analyzer:
+  version: "1.0"
+  canonical-horizon: "1h"
+  similarity:
+    weights:
+      magnitude: 0.3
+      duration: 0.15
+      volume-ratio: 0.2
+      volatility: 0.2
+      momentum: 0.15
+    min-sample-size: 30
+    max-similar-events: 50
+  backfill:
+    fixed-delay-ms: 300000
+
+research:
+  outcome:
+    target-definition-version: "1.0"
+    stop-definition-version: "1.0"
+    target-percentage: 0.01
+    stop-percentage: 0.01

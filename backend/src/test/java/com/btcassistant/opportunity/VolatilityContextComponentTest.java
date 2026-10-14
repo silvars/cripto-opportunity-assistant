@@ -5,6 +5,7 @@ import com.btcassistant.feature.FeatureNames;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.Optional;
 
 import static com.btcassistant.opportunity.OpportunityTestSupport.event;
 import static com.btcassistant.opportunity.OpportunityTestSupport.features;
@@ -17,7 +18,7 @@ class VolatilityContextComponentTest {
     @Test
     void highShortTermVolatilityGivesFullContext() {
         var result = component.calculate(Direction.NEUTRAL, event(EventTypes.VOLATILITY_EXPANSION, "2.0"),
-                features(Map.of(FeatureNames.VOLATILITY_15M, "0.02", FeatureNames.VOLATILITY_4H, "0.01")));
+                features(Map.of(FeatureNames.VOLATILITY_15M, "0.02", FeatureNames.VOLATILITY_4H, "0.01")), Optional.empty());
 
         assertThat(result.orElseThrow()).isEqualByComparingTo("1");
     }
@@ -25,13 +26,13 @@ class VolatilityContextComponentTest {
     @Test
     void returnsUnknownWhenLongTermVolatilityIsZero() {
         var result = component.calculate(Direction.NEUTRAL, event(EventTypes.VOLATILITY_EXPANSION, "2.0"),
-                features(Map.of(FeatureNames.VOLATILITY_15M, "0.02", FeatureNames.VOLATILITY_4H, "0")));
+                features(Map.of(FeatureNames.VOLATILITY_15M, "0.02", FeatureNames.VOLATILITY_4H, "0")), Optional.empty());
 
         assertThat(result).isEmpty();
     }
 
     @Test
     void returnsUnknownWhenMissing() {
-        assertThat(component.calculate(Direction.NEUTRAL, event(EventTypes.VOLATILITY_EXPANSION, "2.0"), features(Map.of()))).isEmpty();
+        assertThat(component.calculate(Direction.NEUTRAL, event(EventTypes.VOLATILITY_EXPANSION, "2.0"), features(Map.of()), Optional.empty())).isEmpty();
     }
 }

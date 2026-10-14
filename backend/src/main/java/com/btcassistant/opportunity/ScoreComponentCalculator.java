@@ -2,6 +2,7 @@ package com.btcassistant.opportunity;
 
 import com.btcassistant.event.DetectedEvent;
 import com.btcassistant.feature.FeatureSnapshot;
+import com.btcassistant.historical.HistoricalContext;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -18,5 +19,5 @@ public interface ScoreComponentCalculator {
 
     BigDecimal weight(OpportunityProperties.Scoring scoring);
 
-    Optional<BigDecimal> calculate(Direction direction, DetectedEvent event, FeatureSnapshot features);
+    Optional<BigDecimal> calculate(Direction direction, DetectedEvent event, FeatureSnapshot features, Optional<HistoricalContext> historicalContext);
 }

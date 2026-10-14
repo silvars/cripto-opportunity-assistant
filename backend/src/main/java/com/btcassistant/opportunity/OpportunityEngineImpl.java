@@ -2,6 +2,7 @@ package com.btcassistant.opportunity;
 
 import com.btcassistant.event.DetectedEvent;
 import com.btcassistant.feature.FeatureSnapshot;
+import com.btcassistant.historical.HistoricalContext;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -48,7 +49,7 @@ public class OpportunityEngineImpl implements OpportunityEngine {
             BigDecimal weight = calculator.weight(scoring);
             totalWeight = totalWeight.add(weight);
 
-            Optional<BigDecimal> normalized = calculator.calculate(direction, event, features);
+            Optional<BigDecimal> normalized = calculator.calculate(direction, event, features, historicalContext);
             if (normalized.isPresent()) {
                 BigDecimal contribution = weight.multiply(normalized.get());
                 numerator = numerator.add(contribution);

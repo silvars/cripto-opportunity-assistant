@@ -3,6 +3,7 @@ package com.btcassistant.opportunity;
 import com.btcassistant.event.DetectedEvent;
 import com.btcassistant.feature.FeatureNames;
 import com.btcassistant.feature.FeatureSnapshot;
+import com.btcassistant.historical.HistoricalContext;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -30,7 +31,7 @@ public class VolumeConfirmationComponent implements ScoreComponentCalculator {
     }
 
     @Override
-    public Optional<BigDecimal> calculate(Direction direction, DetectedEvent event, FeatureSnapshot features) {
+    public Optional<BigDecimal> calculate(Direction direction, DetectedEvent event, FeatureSnapshot features, Optional<HistoricalContext> historicalContext) {
         BigDecimal volumeZscore = features.values().get(FeatureNames.VOLUME_ZSCORE);
         if (volumeZscore == null) {
             return Optional.empty();

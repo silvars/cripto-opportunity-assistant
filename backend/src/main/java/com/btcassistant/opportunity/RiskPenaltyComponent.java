@@ -3,6 +3,7 @@ package com.btcassistant.opportunity;
 import com.btcassistant.event.DetectedEvent;
 import com.btcassistant.feature.FeatureNames;
 import com.btcassistant.feature.FeatureSnapshot;
+import com.btcassistant.historical.HistoricalContext;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -34,7 +35,7 @@ public class RiskPenaltyComponent implements ScoreComponentCalculator {
     }
 
     @Override
-    public Optional<BigDecimal> calculate(Direction direction, DetectedEvent event, FeatureSnapshot features) {
+    public Optional<BigDecimal> calculate(Direction direction, DetectedEvent event, FeatureSnapshot features, Optional<HistoricalContext> historicalContext) {
         BigDecimal volatility24h = features.values().get(FeatureNames.VOLATILITY_24H);
         if (volatility24h == null) {
             return Optional.empty();

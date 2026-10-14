@@ -2,6 +2,7 @@ package com.btcassistant.opportunity;
 
 import com.btcassistant.event.DetectedEvent;
 import com.btcassistant.feature.FeatureSnapshot;
+import com.btcassistant.historical.HistoricalContext;
 
 import java.util.Optional;
 

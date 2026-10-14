@@ -27,7 +27,7 @@ class OpportunityEngineImplTest {
     private final OpportunityProperties properties = new OpportunityProperties();
     private final List<ScoreComponentCalculator> calculators = List.of(
             new EventStrengthComponent(properties),
-            new HistoricalSupportComponent(),
+            new HistoricalSupportComponent(new com.btcassistant.historical.HistoricalProperties()),
             new MomentumContextComponent(properties),
             new VolumeConfirmationComponent(properties),
             new VolatilityContextComponent(properties),

@@ -5,6 +5,7 @@ import com.btcassistant.feature.FeatureNames;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.Optional;
 
 import static com.btcassistant.opportunity.OpportunityTestSupport.event;
 import static com.btcassistant.opportunity.OpportunityTestSupport.features;
@@ -17,7 +18,7 @@ class RiskPenaltyComponentTest {
     @Test
     void lowVolatilityContributesFullWeight() {
         var result = component.calculate(Direction.BUY, event(EventTypes.RAPID_RISE, "0.03"),
-                features(Map.of(FeatureNames.VOLATILITY_24H, "0")));
+                features(Map.of(FeatureNames.VOLATILITY_24H, "0")), Optional.empty());
 
         assertThat(result.orElseThrow()).isEqualByComparingTo("1");
     }
@@ -25,13 +26,13 @@ class RiskPenaltyComponentTest {
     @Test
     void highVolatilityContributesPartialWeight() {
         var result = component.calculate(Direction.BUY, event(EventTypes.RAPID_RISE, "0.03"),
-                features(Map.of(FeatureNames.VOLATILITY_24H, "0.04")));
+                features(Map.of(FeatureNames.VOLATILITY_24H, "0.04")), Optional.empty());
 
         assertThat(result.orElseThrow()).isEqualByComparingTo("0.2");
     }
 
     @Test
     void returnsUnknownWhenVolatilityMissing() {
-        assertThat(component.calculate(Direction.BUY, event(EventTypes.RAPID_RISE, "0.03"), features(Map.of()))).isEmpty();
+        assertThat(component.calculate(Direction.BUY, event(EventTypes.RAPID_RISE, "0.03"), features(Map.of()), Optional.empty())).isEmpty();
     }
 }

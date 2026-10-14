@@ -3,6 +3,7 @@ package com.btcassistant.opportunity;
 import com.btcassistant.event.DetectedEvent;
 import com.btcassistant.event.EventTypes;
 import com.btcassistant.feature.FeatureSnapshot;
+import com.btcassistant.historical.HistoricalContext;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -41,7 +42,7 @@ public class EventStrengthComponent implements ScoreComponentCalculator {
     }
 
     @Override
-    public Optional<BigDecimal> calculate(Direction direction, DetectedEvent event, FeatureSnapshot features) {
+    public Optional<BigDecimal> calculate(Direction direction, DetectedEvent event, FeatureSnapshot features, Optional<HistoricalContext> historicalContext) {
         OpportunityProperties.EventStrengthScales scales = properties.getEventStrengthScales();
         BigDecimal magnitude = event.magnitude().abs();
         String eventType = event.eventType();

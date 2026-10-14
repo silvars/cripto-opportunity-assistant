@@ -5,6 +5,7 @@ import com.btcassistant.feature.FeatureNames;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.Optional;
 
 import static com.btcassistant.opportunity.OpportunityTestSupport.event;
 import static com.btcassistant.opportunity.OpportunityTestSupport.features;
@@ -17,7 +18,7 @@ class MomentumContextComponentTest {
     @Test
     void positiveReturnSupportsBuyDirection() {
         var result = component.calculate(Direction.BUY, event(EventTypes.RAPID_RISE, "0.03"),
-                features(Map.of(FeatureNames.RETURN_15M, "0.02")));
+                features(Map.of(FeatureNames.RETURN_15M, "0.02")), Optional.empty());
 
         assertThat(result.orElseThrow()).isEqualByComparingTo("1");
     }
@@ -25,7 +26,7 @@ class MomentumContextComponentTest {
     @Test
     void positiveReturnAgainstSellDirectionContributesNothing() {
         var result = component.calculate(Direction.SELL, event(EventTypes.RAPID_DROP, "0.03"),
-                features(Map.of(FeatureNames.RETURN_15M, "0.02")));
+                features(Map.of(FeatureNames.RETURN_15M, "0.02")), Optional.empty());
 
         assertThat(result.orElseThrow()).isEqualByComparingTo("0");
     }
@@ -33,13 +34,13 @@ class MomentumContextComponentTest {
     @Test
     void neutralDirectionUsesAbsoluteValue() {
         var result = component.calculate(Direction.NEUTRAL, event(EventTypes.VOLUME_SPIKE, "3"),
-                features(Map.of(FeatureNames.RETURN_15M, "-0.02")));
+                features(Map.of(FeatureNames.RETURN_15M, "-0.02")), Optional.empty());
 
         assertThat(result.orElseThrow()).isEqualByComparingTo("1");
     }
 
     @Test
     void returnsUnknownWhenReturnMissing() {
-        assertThat(component.calculate(Direction.BUY, event(EventTypes.RAPID_RISE, "0.03"), features(Map.of()))).isEmpty();
+        assertThat(component.calculate(Direction.BUY, event(EventTypes.RAPID_RISE, "0.03"), features(Map.of()), Optional.empty())).isEmpty();
     }
 }
