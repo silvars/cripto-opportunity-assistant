@@ -84,11 +84,12 @@ class AlertEvaluatorTest {
     @Test
     void fillsOnlyHorizonsThatHaveAlreadyElapsed() {
         AlertEntity alert = alert(ExecutionMode.LIVE);
+        UUID alertId = alert.getAlertId();
         when(alertRepository.findAll()).thenReturn(List.of(alert));
-        when(evaluationRepository.findById(alert.getAlertId())).thenReturn(Optional.empty());
-        when(outcomeCalculator.calculate(eq(alert.getAlertId()), eq("BTCUSDT"), eq("1m"), eq(ALERT_TIME), any(), eq("5m")))
-                .thenReturn(Optional.of(outcomeFor(alert.getAlertId(), "5m", new BigDecimal("0.01"))));
-        when(outcomeCalculator.calculate(eq(alert.getAlertId()), eq("BTCUSDT"), eq("1m"), eq(ALERT_TIME), any(), eq("15m")))
+        when(evaluationRepository.findById(alertId)).thenReturn(Optional.empty());
+        when(outcomeCalculator.calculate(eq(alertId), eq("BTCUSDT"), eq("1m"), eq(ALERT_TIME), any(), eq("5m")))
+                .thenReturn(Optional.of(outcomeFor(alertId, "5m", new BigDecimal("0.01"))));
+        when(outcomeCalculator.calculate(eq(alertId), eq("BTCUSDT"), eq("1m"), eq(ALERT_TIME), any(), eq("15m")))
                 .thenReturn(Optional.empty());
 
         evaluator.evaluatePendingAlerts(ALERT_TIME.plus(Duration.ofDays(1)));
@@ -103,12 +104,13 @@ class AlertEvaluatorTest {
     @Test
     void setsOutcomeSummaryOnlyWhenCanonicalHorizonResolves() {
         AlertEntity alert = alert(ExecutionMode.LIVE);
+        UUID alertId = alert.getAlertId();
         when(alertRepository.findAll()).thenReturn(List.of(alert));
-        when(evaluationRepository.findById(alert.getAlertId())).thenReturn(Optional.empty());
-        when(outcomeCalculator.calculate(eq(alert.getAlertId()), eq("BTCUSDT"), eq("1m"), eq(ALERT_TIME), any(), eq("5m")))
-                .thenReturn(Optional.of(outcomeFor(alert.getAlertId(), "5m", new BigDecimal("0.01"))));
-        when(outcomeCalculator.calculate(eq(alert.getAlertId()), eq("BTCUSDT"), eq("1m"), eq(ALERT_TIME), any(), eq("15m")))
-                .thenReturn(Optional.of(outcomeFor(alert.getAlertId(), "15m", new BigDecimal("0.02"))));
+        when(evaluationRepository.findById(alertId)).thenReturn(Optional.empty());
+        when(outcomeCalculator.calculate(eq(alertId), eq("BTCUSDT"), eq("1m"), eq(ALERT_TIME), any(), eq("5m")))
+                .thenReturn(Optional.of(outcomeFor(alertId, "5m", new BigDecimal("0.01"))));
+        when(outcomeCalculator.calculate(eq(alertId), eq("BTCUSDT"), eq("1m"), eq(ALERT_TIME), any(), eq("15m")))
+                .thenReturn(Optional.of(outcomeFor(alertId, "15m", new BigDecimal("0.02"))));
 
         evaluator.evaluatePendingAlerts(ALERT_TIME.plus(Duration.ofDays(1)));
 
@@ -121,13 +123,14 @@ class AlertEvaluatorTest {
     @Test
     void neverOverwritesAnAlreadyFilledHorizon() {
         AlertEntity alert = alert(ExecutionMode.LIVE);
-        AlertEvaluationEntity existing = AlertEvaluationEntity.create(alert.getAlertId(), ExecutionMode.LIVE);
+        UUID alertId = alert.getAlertId();
+        AlertEvaluationEntity existing = AlertEvaluationEntity.create(alertId, ExecutionMode.LIVE);
         existing.setHorizonReturn("5m", new BigDecimal("0.99"));
 
         when(alertRepository.findAll()).thenReturn(List.of(alert));
-        when(evaluationRepository.findById(alert.getAlertId())).thenReturn(Optional.of(existing));
-        when(outcomeCalculator.calculate(eq(alert.getAlertId()), eq("BTCUSDT"), eq("1m"), eq(ALERT_TIME), any(), eq("15m")))
-                .thenReturn(Optional.of(outcomeFor(alert.getAlertId(), "15m", new BigDecimal("0.02"))));
+        when(evaluationRepository.findById(alertId)).thenReturn(Optional.of(existing));
+        when(outcomeCalculator.calculate(eq(alertId), eq("BTCUSDT"), eq("1m"), eq(ALERT_TIME), any(), eq("15m")))
+                .thenReturn(Optional.of(outcomeFor(alertId, "15m", new BigDecimal("0.02"))));
 
         evaluator.evaluatePendingAlerts(ALERT_TIME.plus(Duration.ofDays(1)));
 
@@ -159,13 +162,14 @@ class AlertEvaluatorTest {
     @Test
     void skipsFullyEvaluatedAlertsWithoutCallingCalculator() {
         AlertEntity alert = alert(ExecutionMode.LIVE);
-        AlertEvaluationEntity existing = AlertEvaluationEntity.create(alert.getAlertId(), ExecutionMode.LIVE);
+        UUID alertId = alert.getAlertId();
+        AlertEvaluationEntity existing = AlertEvaluationEntity.create(alertId, ExecutionMode.LIVE);
         existing.setHorizonReturn("5m", new BigDecimal("0.01"));
         existing.setHorizonReturn("15m", new BigDecimal("0.02"));
         existing.setOutcomeSummary(new BigDecimal("0.02"), new BigDecimal("-0.01"), true);
 
         when(alertRepository.findAll()).thenReturn(List.of(alert));
-        when(evaluationRepository.findById(alert.getAlertId())).thenReturn(Optional.of(existing));
+        when(evaluationRepository.findById(alertId)).thenReturn(Optional.of(existing));
 
         evaluator.evaluatePendingAlerts(ALERT_TIME.plus(Duration.ofDays(1)));
 
