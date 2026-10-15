@@ -6,7 +6,7 @@ Sistema pessoal de inteligência de mercado para BTC/USDT — acompanha o mercad
 
 Arquitetura completa e decisões de design: [docs/SDD.md](docs/SDD.md). Specs por fase: [docs/phases/](docs/phases/).
 
-**Fase atual implementada:** Fase 0 — Walking Skeleton (ingestão de mercado em tempo real + backfill histórico automático + dashboard mínimo).
+**Fase atual implementada:** Fase 7 — Research/Backtesting (passando por: ingestão de mercado ao vivo + backfill histórico, feature engine, event detector, opportunity/risk/alert, historical analyzer, agente de IA local via Ollama, decision memory/operações e backtesting determinístico).
 
 ## Stack
 
@@ -117,3 +117,44 @@ INITIALIZING → CHECKING_HISTORY → BACKFILLING → (RETRYING se falhar) → H
 ## Regras não-negociáveis do projeto
 
 Ver [.github/copilot-instructions.md](.github/copilot-instructions.md) para a lista completa (sem lookahead, imutabilidade de dados de mercado/oportunidades/alertas, sem auto-trading, LLM nunca calcula métricas, precisão financeira com `BigDecimal`/`Instant`, degradação graciosa do pipeline quantitativo).
+
+## Agente de IA local (Ollama)
+
+A Fase 5 adiciona interpretação por IA sobre alertas já calculados deterministicamente (o modelo nunca calcula métricas, só interpreta — ver `agent` em `.github/copilot-instructions.md`). O Ollama roda **no host**, nunca dentro do stack Docker.
+
+### Instalar o Ollama (macOS)
+
+```bash
+brew install ollama
+```
+
+> Se o `brew install` falhar clonando `llama.cpp` com um erro do tipo `unknown option 'end-of-options'`, o `git` do sistema está desatualizado (precisa de `git >= 2.34`). Rode `git --version` — se vier abaixo de 2.34, instale um git atual (`brew install git`, depois `hash -r` e confirme `git --version` de novo) antes de repetir o `brew install ollama`.
+
+### Subir o serviço e baixar o modelo
+
+```bash
+brew services start ollama   # ou `ollama serve` em um terminal separado
+ollama pull llama3.1:8b       # modelo default configurado em agent.ollama.model
+```
+
+Validar que está respondendo:
+
+```bash
+curl http://localhost:11434/api/tags
+```
+
+Deve listar `llama3.1:8b`. Esse é o mesmo endpoint usado pelo `OllamaHealthIndicator` (detalhe `ollamaReachable` em `/actuator/health`).
+
+### Configuração
+
+| Variável | Default | Observação |
+|---|---|---|
+| `AGENT_ENABLED` | `true` | desliga o agente sem desligar o pipeline quantitativo |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` (local) / `http://host.docker.internal:11434` (docker compose) | `localhost` dentro do container apontaria pro próprio container, por isso o compose usa `host.docker.internal` |
+| `OLLAMA_MODEL` | `llama3.1:8b` | precisa ter sido baixado via `ollama pull` antes de usar |
+
+Com `docker compose up`, nada precisa ser ajustado — o `OLLAMA_BASE_URL` já vem configurado pra `host.docker.internal` no `docker-compose.yml`; só garanta que o Ollama esteja rodando no host **antes** de subir a stack.
+
+### Graceful degradation
+
+Ollama fora do ar nunca derruba alertas, dashboard ou `/actuator/health` geral — a análise de IA fica `FAILED`/`TIMEOUT` nessa linha específica (`agent_analyses`), e o pipeline quantitativo (market → feature → event → opportunity → risk → alert) continua funcionando normalmente.
