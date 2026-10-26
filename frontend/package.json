@@ -23,7 +23,7 @@
     "@types/sockjs-client": "1.5.4",
     "tailwindcss": "4.3.3",
     "@tailwindcss/postcss": "4.3.3",
-    "eslint": "9.39.5",
+    "eslint": "10.13.0",
     "@eslint/js": "10.0.1",
     "typescript-eslint": "8.71.2",
     "eslint-plugin-react-hooks": "7.1.1"
